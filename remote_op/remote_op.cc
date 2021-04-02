@@ -136,7 +136,7 @@ flatbuffers::Offset<graphpipe::Tensor> to_flat(flatbuffers::FlatBufferBuilder &b
   flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<flatbuffers::String>>> string_val = 0;
   if (type == graphpipe::Type_String) {
     auto num_vals = tensor->NumElements();
-    auto vals = tensor->flat<string>();
+    auto vals = tensor->flat<tstring>();
     std::vector<std::string> valvec;
     for (int i = 0; i < num_vals; ++i) {
       valvec.push_back(vals(i));
@@ -156,7 +156,7 @@ bool from_flat(Tensor *tensor, const graphpipe::Tensor *flat_tensor) {
   auto type = to_tf_dtype(flat_tensor->type());
   *tensor = Tensor(type, shape);
   if (type == DT_STRING) {
-    auto dstarray = tensor->flat<string>();
+    auto dstarray = tensor->flat<tstring>();
     for (int i = 0; i < flat_tensor->string_val()->Length(); ++i) {
       dstarray(i).assign(flat_tensor->string_val()->Get(i)->c_str());
     }
@@ -173,20 +173,23 @@ class RemoteOp : public OpKernel {
   void Compute(OpKernelContext* context) override {
     const Tensor* tmp;
     OP_REQUIRES_OK(context, context->input("uri", &tmp));
-    const string uri = tmp->scalar<string>()();
+    const string uri = tmp->scalar<tstring>()();
     OP_REQUIRES_OK(context, context->input("config", &tmp));
-    const string config = tmp->scalar<string>()();
+    const string config = tmp->scalar<tstring>()();
     OP_REQUIRES_OK(context, context->input("input_names", &tmp));
     int num_inputs = tmp->NumElements();
-    auto input_names = tmp->flat<string>();
+    auto input_names = tmp->flat<tstring>();
     OP_REQUIRES_OK(context, context->input("output_names", &tmp));
     int num_outputs = tmp->NumElements();
-    auto output_names = tmp->flat<string>();
+    auto output_names = tmp->flat<tstring>();
 
     flatbuffers::FlatBufferBuilder builder(1024);
 
     int start, stop;
-    context->op_kernel().InputRange("inputs", &start, &stop);
+    if (!context->op_kernel().InputRange("inputs", &start, &stop).ok()) {
+        LOG(ERROR) << "Could not set input range";
+        return;
+    }
     std::vector<flatbuffers::Offset<graphpipe::Tensor>> inputs_vector;
     for (int i = start; i < stop; ++i) {
       inputs_vector.push_back(to_flat(builder, &context->input(i)));

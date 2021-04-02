@@ -13,33 +13,38 @@ import stat
 
 import tensorflow as tf
 
-from tensorflow.contrib.keras import backend as K
-from tensorflow.contrib.keras import models
-from tensorflow.python.framework import graph_io
-from tensorflow.python.framework import graph_util
+from tensorflow.keras import models
+from tensorflow.python.eager import def_function
+from tensorflow.python.framework import ops
+from tensorflow.python.framework import convert_to_constants as convert
+from tensorflow.python.keras.saving import saving_utils
 
 
-def write_graph(graph, fname):
+def write_graph(graph_def, fname):
     d, f = os.path.split(os.path.abspath(fname))
-    graph_io.write_graph(graph, d, f, as_text=False)
+    tf.io.write_graph(graph_or_graph_def=graph_def,
+                  logdir=d,
+                  name=f"{fname}",
+                  as_text=False)
 
 
 def constantize(fname):
-    K.clear_session()
-    tf.reset_default_graph()
-    K.set_learning_phase(False)
-    mod = models.load_model(fname)
-    outputs = mod.output
-    if not isinstance(outputs, collections.Sequence):
-        outputs = [outputs]
-    output_names = []
-    for output in outputs:
-        output_names.append(output.name.split(':')[0])
-    sess = K.get_session()
-    cg = graph_util.convert_variables_to_constants(
-        sess, sess.graph.as_graph_def(add_shapes=True), output_names)
-    K.clear_session()
-    return cg
+    model = models.load_model(fname)
+
+    input_signature = None
+    # If the model is not a function then the model may include
+    # a specific batch size, so we include it as well.
+    if not isinstance(model.call, def_function.Function):
+        input_signature = saving_utils.model_input_signature(
+            model, keep_original_batch_size=True)
+
+    func = saving_utils.trace_model_call(model, input_signature)
+    concrete_func = func.get_concrete_function()
+    _, graph_def = convert.convert_variables_to_constants_v2_as_graph(
+        concrete_func, lower_control_flow=False)
+
+
+    return graph_def
 
 
 def h5_to_pb(h5, pb):
@@ -53,10 +58,7 @@ def copy_perms(source, target):
 
 if __name__ == "__main__":
     # disable gpu for conversion
-    config = tf.ConfigProto(allow_soft_placement=True,
-                            device_count={'CPU': 1, 'GPU': 0})
-    session = tf.Session(config=config)
-    K.set_session(session)
+    tf.config.set_visible_devices([], 'GPU')
 
     import sys
     if len(sys.argv) < 3:

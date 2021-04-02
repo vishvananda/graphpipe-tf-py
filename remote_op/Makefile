@@ -5,7 +5,7 @@
 
 TARGET = ../graphpipe_tf/remote_op.so
 
-PYTHON = python
+PYTHON = python3
 
 TF_LIB = $(shell $(PYTHON) -c 'import tensorflow as tf; print(tf.sysconfig.get_lib())')
 TF_INC = $(shell $(PYTHON) -c 'import tensorflow as tf; print(tf.sysconfig.get_include())')

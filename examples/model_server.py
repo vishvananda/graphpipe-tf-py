@@ -13,7 +13,7 @@ import argparse
 from http import server
 
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
 from graphpipe import convert
 from graphpipe.graphpipefb.Type import Type

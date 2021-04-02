@@ -1,9 +1,9 @@
-flake8==2.5.0
-hacking<0.11,>=0.10.0
+flake8==2.2.4
+hacking==0.10.3
 pytest-cov==2.4.0
-testtools>=1.4.0
-numpy>=1.13.3
+testtools==1.4.0
+numpy==1.19.3
 requests==2.18.4
-tensorflow>=1.4.0
--e git+https://github.com/oracle/graphpipe-py#egg=graphpipe
-flatbuffers==1.9.0
+tensorflow==2.5.0rc0
+graphpipe==1.0.5
+flatbuffers==1.12.0
